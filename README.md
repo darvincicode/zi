@@ -1,11 +1,14 @@
-<div align="center">
+# ZecMiner Pro
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A professional Zcash cloud mining simulation platform.
 
-  <h1>Built with AI Studio</h2>
+## Deployment Instructions
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+This project is built with React and Vite. To deploy it to your web hosting:
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+1.  **Install Node.js**: Ensure you have Node.js installed on your computer.
+2.  **Install Dependencies**: Run `npm install` in the project root directory.
+3.  **Build**: Run `npm run build`. This will generate a `dist` folder.
+4.  **Upload**: Upload the contents of the `dist` folder to your web server (e.g., public_html).
 
-</div>
+Note: This app uses `localStorage` for data persistence. In a real-world scenario, you would connect this to a backend database.
