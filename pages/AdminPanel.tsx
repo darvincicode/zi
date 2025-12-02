@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, fetchPlans, fetchSettings, savePlans, saveSettings, updateUser } from '../services/storage';
+import { getUsers, fetchPlans, fetchSettings, savePlans, saveSettings, updateUser, updateAdminPassword } from '../services/storage';
 import { User, MiningPlan, GlobalSettings, UnitMultiplier, Transaction } from '../types';
-import { Edit2, Save, Trash2, Plus, Users, Cpu, Activity, Search, Download, CheckCircle2, XCircle, Wallet, ArrowUpRight, ArrowDownLeft, Mail } from 'lucide-react';
+import { Edit2, Save, Trash2, Plus, Users, Cpu, Activity, Search, Download, CheckCircle2, XCircle, Wallet, ArrowUpRight, ArrowDownLeft, Mail, Lock } from 'lucide-react';
 
 interface PendingTransaction {
   userId: string;
@@ -19,6 +19,10 @@ const AdminPanel: React.FC = () => {
   // Edit States
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
+  // Password Change State
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
+
   // Manual Withdraw State
   const [manualWithdrawUser, setManualWithdrawUser] = useState<User | null>(null);
   const [manualAmount, setManualAmount] = useState<string>('');
@@ -147,6 +151,30 @@ const AdminPanel: React.FC = () => {
       await saveSettings(settings);
       setSaving(false);
       alert('Settings updated successfully!');
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdminPassword || newAdminPassword.length < 6) {
+        alert("Password must be at least 6 characters.");
+        return;
+    }
+    if (newAdminPassword !== confirmAdminPassword) {
+        alert("Passwords do not match.");
+        return;
+    }
+    
+    setSaving(true);
+    const success = await updateAdminPassword(newAdminPassword);
+    setSaving(false);
+    
+    if (success) {
+        alert("Admin password updated successfully.");
+        setNewAdminPassword('');
+        setConfirmAdminPassword('');
+    } else {
+        alert("Failed to update password.");
     }
   };
 
@@ -591,6 +619,41 @@ const AdminPanel: React.FC = () => {
             <button onClick={saveAllSettings} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg flex items-center gap-2 disabled:opacity-50">
                <Save size={18} /> {saving ? 'Saving...' : 'Update Global Settings'}
              </button>
+
+            {/* Admin Password Change Section */}
+            <div className="border-t border-slate-800 pt-6 mt-8">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                 <Lock className="w-5 h-5 text-red-500" />
+                 Admin Security
+              </h3>
+              <form onSubmit={handleChangePassword} className="space-y-4 bg-slate-950 p-4 rounded-lg border border-slate-800">
+                 <div>
+                    <label className="block text-sm text-slate-400 mb-1">New Password</label>
+                    <input 
+                      type="password" 
+                      value={newAdminPassword}
+                      onChange={(e) => setNewAdminPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white focus:border-red-500 outline-none"
+                      placeholder="Min 6 characters"
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-sm text-slate-400 mb-1">Confirm Password</label>
+                    <input 
+                      type="password" 
+                      value={confirmAdminPassword}
+                      onChange={(e) => setConfirmAdminPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white focus:border-red-500 outline-none"
+                      placeholder="Re-enter password"
+                    />
+                 </div>
+                 <div className="flex justify-end">
+                    <button type="submit" disabled={saving} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium disabled:opacity-50">
+                        {saving ? 'Updating...' : 'Update Password'}
+                    </button>
+                 </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

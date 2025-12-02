@@ -87,6 +87,22 @@ export const verifyAdmin = async (username: string, pass: string): Promise<boole
   return (username === 'admin' && pass === '123456');
 };
 
+export const updateAdminPassword = async (newPassword: string): Promise<boolean> => {
+  if (supabase) {
+    const { error } = await supabase
+      .from('admin_auth')
+      .update({ password: newPassword })
+      .eq('username', 'admin');
+      
+    if (error) {
+        console.error("Error updating password:", error);
+        return false;
+    }
+    return true;
+  }
+  return true; // Mock success for local mode
+};
+
 // --- SETTINGS (Sync + Async) ---
 
 // Reads from Local Cache (Fast, for loops)
@@ -161,8 +177,8 @@ export const fetchPlans = async (): Promise<MiningPlan[]> => {
         id: p.id,
         name: p.name,
         hashRate: p.hash_rate,
-        hashRateLabel: p.hash_rate_label,
-        priceZec: p.price_zec,
+        hashRateLabel: p.hashRateLabel,
+        priceZec: p.priceZec,
         dailyProfit: p.daily_profit
       }));
       // Sort by price
