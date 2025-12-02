@@ -242,13 +242,37 @@ const Dashboard: React.FC = () => {
                   </div>
 
                   <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex flex-col items-center text-center">
-                     <QrCode className="w-24 h-24 text-white bg-slate-900 p-2 rounded mb-3"/>
+                     {getAdminAddress(cryptoType) ? (
+                       <div className="bg-white p-2 rounded mb-3">
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(getAdminAddress(cryptoType))}`}
+                            alt="Payment QR Code"
+                            className="w-24 h-24"
+                          />
+                       </div>
+                     ) : (
+                        <QrCode className="w-24 h-24 text-white bg-slate-900 p-2 rounded mb-3"/>
+                     )}
+                     
                      <p className="text-xs text-slate-500 mb-1">Send payment to this address:</p>
                      <div className="flex items-center gap-2 w-full bg-slate-900 rounded px-2 py-1.5 border border-slate-800">
                         <code className="text-xs text-emerald-400 flex-1 break-all text-left">
                           {getAdminAddress(cryptoType) || "Address not configured by admin"}
                         </code>
-                        <button className="text-slate-500 hover:text-white" title="Copy"><Copy size={14}/></button>
+                        <button 
+                            onClick={() => {
+                                const addr = getAdminAddress(cryptoType);
+                                if(addr) {
+                                    navigator.clipboard.writeText(addr);
+                                    setNotification({ msg: "Address copied!", type: 'success' });
+                                    setTimeout(() => setNotification(null), 2000);
+                                }
+                            }}
+                            className="text-slate-500 hover:text-white" 
+                            title="Copy"
+                        >
+                            <Copy size={14}/>
+                        </button>
                      </div>
                   </div>
 
