@@ -1,21 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, Lock } from 'lucide-react';
+import { verifyAdmin } from '../services/storage';
 
 const AdminLogin: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Hardcoded credentials as per request
-    if (username === 'admin' && password === '123456') {
-      localStorage.setItem('zec_admin_session', 'true');
-      navigate('/admin');
-    } else {
-      setError('Invalid credentials');
+    setLoading(true);
+    setError('');
+    
+    try {
+      const isValid = await verifyAdmin(username, password);
+      if (isValid) {
+        localStorage.setItem('zec_admin_session', 'true');
+        navigate('/admin');
+      } else {
+        setError('Invalid credentials');
+      }
+    } catch (err) {
+      setError('Connection failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,9 +67,10 @@ const AdminLogin: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors mt-2"
+            disabled={loading}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors mt-2 disabled:opacity-50"
           >
-            Access Panel
+            {loading ? 'Verifying...' : 'Access Panel'}
           </button>
         </form>
         <button onClick={() => navigate('/')} className="w-full text-center text-slate-600 text-xs mt-6 hover:text-slate-400">Back to Main Site</button>

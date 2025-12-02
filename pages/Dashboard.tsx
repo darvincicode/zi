@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getCurrentUser, getPlans, getSettings, updateUser, calculateMiningEarnings } from '../services/storage';
+import { getCurrentUser, getPlans, getSettings, updateUser, calculateMiningEarnings, fetchPlans, fetchSettings } from '../services/storage';
 import { User, MiningPlan, UnitMultiplier } from '../types';
 import { 
   Zap, 
@@ -37,6 +37,13 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const init = async () => {
         const currentUser = await getCurrentUser();
+        
+        // Fetch global settings and plans asynchronously from DB to update local cache
+        await fetchSettings();
+        const latestPlans = await fetchPlans();
+        
+        setPlans(latestPlans);
+
         if (currentUser) {
           setUser(currentUser);
           
@@ -50,7 +57,6 @@ const Dashboard: React.FC = () => {
         }
     };
     init();
-    setPlans(getPlans()); // Plans are still usually static/sync for now
   }, []);
 
   // Mining Loop

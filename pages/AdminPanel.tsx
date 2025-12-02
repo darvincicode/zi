@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, getPlans, getSettings, savePlans, saveSettings, updateUser } from '../services/storage';
+import { getUsers, fetchPlans, fetchSettings, savePlans, saveSettings, updateUser } from '../services/storage';
 import { User, MiningPlan, GlobalSettings, UnitMultiplier, Transaction } from '../types';
 import { Edit2, Save, Trash2, Plus, Users, Cpu, Activity, Search, Download, CheckCircle2, XCircle, Wallet, ArrowUpRight, ArrowDownLeft, Mail } from 'lucide-react';
 
@@ -22,6 +22,9 @@ const AdminPanel: React.FC = () => {
   // Manual Withdraw State
   const [manualWithdrawUser, setManualWithdrawUser] = useState<User | null>(null);
   const [manualAmount, setManualAmount] = useState<string>('');
+  
+  // Loading State
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     refreshData();
@@ -30,8 +33,13 @@ const AdminPanel: React.FC = () => {
   const refreshData = async () => {
     const fetchedUsers = await getUsers();
     setUsers(fetchedUsers);
-    setPlans(getPlans());
-    setSettings(getSettings());
+    
+    // Fetch Settings and Plans from DB
+    const s = await fetchSettings();
+    setSettings(s);
+    
+    const p = await fetchPlans();
+    setPlans(p);
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
@@ -126,14 +134,18 @@ const AdminPanel: React.FC = () => {
     setPlans(newPlans);
   };
 
-  const saveAllPlans = () => {
-    savePlans(plans);
+  const saveAllPlans = async () => {
+    setSaving(true);
+    await savePlans(plans);
+    setSaving(false);
     alert('Plans updated successfully!');
   };
 
-  const saveAllSettings = () => {
+  const saveAllSettings = async () => {
     if (settings) {
-      saveSettings(settings);
+      setSaving(true);
+      await saveSettings(settings);
+      setSaving(false);
       alert('Settings updated successfully!');
     }
   };
@@ -150,7 +162,7 @@ const AdminPanel: React.FC = () => {
       }))
   );
 
-  if (!settings) return <div>Loading...</div>;
+  if (!settings) return <div className="p-8 text-white">Loading Admin Data...</div>;
 
   return (
     <div className="space-y-6">
@@ -376,8 +388,8 @@ const AdminPanel: React.FC = () => {
              </div>
 
              <div className="flex justify-end pt-4">
-                <button onClick={saveAllSettings} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg flex items-center gap-2">
-                   <Save size={18} /> Save Payment Config
+                <button onClick={saveAllSettings} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg flex items-center gap-2 disabled:opacity-50">
+                   <Save size={18} /> {saving ? 'Saving...' : 'Save Payment Config'}
                 </button>
              </div>
           </div>
@@ -503,8 +515,8 @@ const AdminPanel: React.FC = () => {
             </div>
           ))}
           <div className="flex justify-end">
-             <button onClick={saveAllPlans} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg flex items-center gap-2">
-               <Save size={18} /> Save All Plans
+             <button onClick={saveAllPlans} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg flex items-center gap-2 disabled:opacity-50">
+               <Save size={18} /> {saving ? 'Saving...' : 'Save All Plans'}
              </button>
           </div>
         </div>
@@ -576,8 +588,8 @@ const AdminPanel: React.FC = () => {
               />
             </div>
 
-            <button onClick={saveAllSettings} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg flex items-center gap-2">
-               <Save size={18} /> Update Global Settings
+            <button onClick={saveAllSettings} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg flex items-center gap-2 disabled:opacity-50">
+               <Save size={18} /> {saving ? 'Saving...' : 'Update Global Settings'}
              </button>
           </div>
         </div>

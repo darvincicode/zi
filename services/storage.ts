@@ -2,9 +2,6 @@ import { User, MiningPlan, GlobalSettings, Transaction, UnitMultiplier } from '.
 import { createClient } from '@supabase/supabase-js';
 
 // --- DATABASE CONFIGURATION ---
-// 1. Create a project at https://supabase.com
-// 2. Run the SQL query provided in the instructions to create the 'users' table.
-// 3. Paste your URL and ANON KEY here.
 const SUPABASE_URL = 'https://ydoetufcpqdlpkwmrehd.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlkb2V0dWZjcHFkbHBrd21yZWhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2OTA3MTYsImV4cCI6MjA4MDI2NjcxNn0.ujaiXSo3DGS7CBPVIQSLtzG6M14w-53k2Xr95s6x17o';
 
@@ -76,20 +73,106 @@ const saveToLocal = (key: string, data: any) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
 
-// --- Service Methods (Now Async) ---
+// --- ADMIN AUTH ---
+export const verifyAdmin = async (username: string, pass: string): Promise<boolean> => {
+  if (supabase) {
+    const { data } = await supabase.from('admin_auth')
+      .select('*')
+      .eq('username', username)
+      .eq('password', pass)
+      .single();
+    return !!data;
+  }
+  // Fallback if no DB connection
+  return (username === 'admin' && pass === '123456');
+};
 
+// --- SETTINGS (Sync + Async) ---
+
+// Reads from Local Cache (Fast, for loops)
 export const getSettings = (): GlobalSettings => getFromLocal(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
-export const saveSettings = (settings: GlobalSettings) => saveToLocal(STORAGE_KEYS.SETTINGS, settings);
+
+// Fetches from DB & Updates Local Cache
+export const fetchSettings = async (): Promise<GlobalSettings> => {
+  if (supabase) {
+    const { data } = await supabase.from('global_settings').select('*').eq('id', 1).single();
+    if (data) {
+      const s: GlobalSettings = {
+        zecToUsd: data.zec_to_usd,
+        baseMiningRate: data.base_mining_rate,
+        minWithdrawalAmount: data.min_withdrawal_amount,
+        referralBonusHashRate: data.referral_bonus_hash_rate,
+        supportEmail: data.support_email,
+        paymentConfig: data.payment_config
+      };
+      saveToLocal(STORAGE_KEYS.SETTINGS, s);
+      return s;
+    }
+  }
+  return getSettings();
+};
+
+export const saveSettings = async (settings: GlobalSettings) => {
+  saveToLocal(STORAGE_KEYS.SETTINGS, settings);
+  if (supabase) {
+    await supabase.from('global_settings').upsert({
+      id: 1,
+      zec_to_usd: settings.zecToUsd,
+      base_mining_rate: settings.baseMiningRate,
+      min_withdrawal_amount: settings.minWithdrawalAmount,
+      referral_bonus_hash_rate: settings.referralBonusHashRate,
+      support_email: settings.supportEmail,
+      payment_config: settings.paymentConfig
+    });
+  }
+};
+
+// --- PLANS (Sync + Async) ---
 
 export const getPlans = (): MiningPlan[] => getFromLocal(STORAGE_KEYS.PLANS, DEFAULT_PLANS);
-export const savePlans = (plans: MiningPlan[]) => saveToLocal(STORAGE_KEYS.PLANS, plans);
 
-// Fetch all users (Admin)
+export const fetchPlans = async (): Promise<MiningPlan[]> => {
+  if (supabase) {
+    const { data } = await supabase.from('plans').select('*');
+    if (data && data.length > 0) {
+      const plans: MiningPlan[] = data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        hashRate: p.hash_rate,
+        hashRateLabel: p.hash_rate_label,
+        priceZec: p.price_zec,
+        dailyProfit: p.daily_profit
+      }));
+      // Sort by price
+      plans.sort((a, b) => a.priceZec - b.priceZec);
+      saveToLocal(STORAGE_KEYS.PLANS, plans);
+      return plans;
+    }
+  }
+  return getPlans();
+};
+
+export const savePlans = async (plans: MiningPlan[]) => {
+  saveToLocal(STORAGE_KEYS.PLANS, plans);
+  if (supabase) {
+    const dbPlans = plans.map(p => ({
+      id: p.id,
+      name: p.name,
+      hash_rate: p.hashRate,
+      hash_rate_label: p.hashRateLabel,
+      price_zec: p.priceZec,
+      daily_profit: p.dailyProfit
+    }));
+    await supabase.from('plans').upsert(dbPlans);
+  }
+};
+
+// --- USERS ---
+
 export const getUsers = async (): Promise<User[]> => {
   if (supabase) {
     const { data, error } = await supabase.from('users').select('*');
     if (!error && data) {
-      // Map DB fields to User type if needed
       return data.map((u: any) => ({
         id: u.id,
         loginZecAddress: u.login_zec_address,
@@ -107,12 +190,11 @@ export const getUsers = async (): Promise<User[]> => {
   return getFromLocal(STORAGE_KEYS.USERS, []);
 };
 
-// Internal local save helper
 const saveUsersLocal = (users: User[]) => saveToLocal(STORAGE_KEYS.USERS, users);
 
 export const findUserByLoginAddress = async (address: string): Promise<User | undefined> => {
   if (supabase) {
-     const { data, error } = await supabase.from('users').select('*').eq('login_zec_address', address).single();
+     const { data } = await supabase.from('users').select('*').eq('login_zec_address', address).single();
      if (data) {
         return {
             id: data.id,
@@ -129,13 +211,13 @@ export const findUserByLoginAddress = async (address: string): Promise<User | un
      }
      return undefined;
   }
-
   const users = getFromLocal<User[]>(STORAGE_KEYS.USERS, []);
   return users.find(u => u.loginZecAddress === address);
 };
 
 export const registerUser = async (address: string, referrerId?: string | null): Promise<User> => {
-  const settings = getSettings();
+  // Ensure we have latest settings for bonus
+  const settings = await fetchSettings();
   
   const newUser: User = {
     id: crypto.randomUUID(),
@@ -151,9 +233,7 @@ export const registerUser = async (address: string, referrerId?: string | null):
   };
 
   if (supabase) {
-     // Handle Referrer Bonus in DB
      if (referrerId) {
-        // Fetch referrer first to add bonus
         const { data: refUser } = await supabase.from('users').select('*').eq('id', referrerId).single();
         if (refUser) {
            const newRate = refUser.active_hash_rate + settings.referralBonusHashRate;
@@ -175,7 +255,6 @@ export const registerUser = async (address: string, referrerId?: string | null):
         }
      }
 
-     // Insert new user
      const { error } = await supabase.from('users').insert({
         id: newUser.id,
         login_zec_address: newUser.loginZecAddress,
@@ -196,7 +275,6 @@ export const registerUser = async (address: string, referrerId?: string | null):
      return newUser;
   }
 
-  // Fallback LocalStorage
   const users = getFromLocal<User[]>(STORAGE_KEYS.USERS, []);
   if (referrerId) {
     const referrerIndex = users.findIndex(u => u.id === referrerId);
@@ -232,7 +310,6 @@ export const updateUser = async (updatedUser: User) => {
      }).eq('id', updatedUser.id);
      return;
   }
-
   const users = getFromLocal<User[]>(STORAGE_KEYS.USERS, []);
   const index = users.findIndex(u => u.id === updatedUser.id);
   if (index !== -1) {
@@ -241,12 +318,9 @@ export const updateUser = async (updatedUser: User) => {
   }
 };
 
-// --- Auth Simulation ---
-
 export const loginUser = async (address: string, referrerId?: string | null): Promise<User> => {
   const existing = await findUserByLoginAddress(address);
   if (existing) {
-    // Migration checks (if fields missing)
     let needsUpdate = false;
     if (existing.referralCount === undefined) {
         existing.referralCount = 0;
@@ -254,12 +328,9 @@ export const loginUser = async (address: string, referrerId?: string | null): Pr
         needsUpdate = true;
     }
     if (needsUpdate) await updateUser(existing);
-
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, existing.id);
     return existing;
   }
-  
-  // Register new user
   const newUser = await registerUser(address, referrerId);
   localStorage.setItem(STORAGE_KEYS.CURRENT_USER, newUser.id);
   return newUser;
@@ -287,7 +358,6 @@ export const getCurrentUser = async (): Promise<User | null> => {
      }
      return null;
   }
-
   const users = getFromLocal<User[]>(STORAGE_KEYS.USERS, []);
   return users.find(u => u.id === id) || null;
 };
@@ -295,8 +365,6 @@ export const getCurrentUser = async (): Promise<User | null> => {
 export const logout = () => {
   localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
 };
-
-// --- Mining Logic ---
 
 export const calculateMiningEarnings = (user: User, secondsElapsed: number): number => {
   const settings = getSettings();
