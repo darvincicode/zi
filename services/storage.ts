@@ -92,26 +92,6 @@ export const verifyAdmin = async (username: string, pass: string): Promise<boole
 // Reads from Local Cache (Fast, for loops)
 export const getSettings = (): GlobalSettings => getFromLocal(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
 
-// Fetches from DB & Updates Local Cache
-export const fetchSettings = async (): Promise<GlobalSettings> => {
-  if (supabase) {
-    const { data } = await supabase.from('global_settings').select('*').eq('id', 1).single();
-    if (data) {
-      const s: GlobalSettings = {
-        zecToUsd: data.zec_to_usd,
-        baseMiningRate: data.base_mining_rate,
-        minWithdrawalAmount: data.min_withdrawal_amount,
-        referralBonusHashRate: data.referral_bonus_hash_rate,
-        supportEmail: data.support_email,
-        paymentConfig: data.payment_config
-      };
-      saveToLocal(STORAGE_KEYS.SETTINGS, s);
-      return s;
-    }
-  }
-  return getSettings();
-};
-
 export const saveSettings = async (settings: GlobalSettings) => {
   saveToLocal(STORAGE_KEYS.SETTINGS, settings);
   if (supabase) {
@@ -127,10 +107,52 @@ export const saveSettings = async (settings: GlobalSettings) => {
   }
 };
 
+// Fetches from DB & Updates Local Cache
+// AUTO-SEEDS DB if empty
+export const fetchSettings = async (): Promise<GlobalSettings> => {
+  if (supabase) {
+    const { data } = await supabase.from('global_settings').select('*').eq('id', 1).single();
+    if (data) {
+      const s: GlobalSettings = {
+        zecToUsd: data.zec_to_usd,
+        baseMiningRate: data.base_mining_rate,
+        minWithdrawalAmount: data.min_withdrawal_amount,
+        referralBonusHashRate: data.referral_bonus_hash_rate,
+        supportEmail: data.support_email,
+        paymentConfig: data.payment_config
+      };
+      saveToLocal(STORAGE_KEYS.SETTINGS, s);
+      return s;
+    } else {
+        // Table exists but is empty? Seed it.
+        console.log("Seeding default settings to DB...");
+        await saveSettings(DEFAULT_SETTINGS);
+        return DEFAULT_SETTINGS;
+    }
+  }
+  return getSettings();
+};
+
 // --- PLANS (Sync + Async) ---
 
 export const getPlans = (): MiningPlan[] => getFromLocal(STORAGE_KEYS.PLANS, DEFAULT_PLANS);
 
+export const savePlans = async (plans: MiningPlan[]) => {
+  saveToLocal(STORAGE_KEYS.PLANS, plans);
+  if (supabase) {
+    const dbPlans = plans.map(p => ({
+      id: p.id,
+      name: p.name,
+      hash_rate: p.hashRate,
+      hash_rate_label: p.hashRateLabel,
+      price_zec: p.priceZec,
+      daily_profit: p.dailyProfit
+    }));
+    await supabase.from('plans').upsert(dbPlans);
+  }
+};
+
+// AUTO-SEEDS DB if empty
 export const fetchPlans = async (): Promise<MiningPlan[]> => {
   if (supabase) {
     const { data } = await supabase.from('plans').select('*');
@@ -147,24 +169,14 @@ export const fetchPlans = async (): Promise<MiningPlan[]> => {
       plans.sort((a, b) => a.priceZec - b.priceZec);
       saveToLocal(STORAGE_KEYS.PLANS, plans);
       return plans;
+    } else {
+        // Table exists but is empty? Seed it.
+        console.log("Seeding default plans to DB...");
+        await savePlans(DEFAULT_PLANS);
+        return DEFAULT_PLANS;
     }
   }
   return getPlans();
-};
-
-export const savePlans = async (plans: MiningPlan[]) => {
-  saveToLocal(STORAGE_KEYS.PLANS, plans);
-  if (supabase) {
-    const dbPlans = plans.map(p => ({
-      id: p.id,
-      name: p.name,
-      hash_rate: p.hashRate,
-      hash_rate_label: p.hashRateLabel,
-      price_zec: p.priceZec,
-      daily_profit: p.dailyProfit
-    }));
-    await supabase.from('plans').upsert(dbPlans);
-  }
 };
 
 // --- USERS ---
