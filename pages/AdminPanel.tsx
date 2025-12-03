@@ -607,13 +607,23 @@ const AdminPanel: React.FC = () => {
             </div>
             
             <div className="border-t border-slate-800 pt-6">
-              <label className="block text-sm font-medium text-slate-400 mb-2">ZEC to USD Rate (Display only)</label>
-              <input 
-                type="number" 
-                value={settings.zecToUsd} 
-                onChange={(e) => setSettings({...settings, zecToUsd: parseFloat(e.target.value)})}
-                className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-white" 
-              />
+              <label className="block text-sm font-medium text-slate-400 mb-2">ZEC to USD Rate (Live Data)</label>
+              <div className="flex gap-2">
+                  <input 
+                    type="number" 
+                    value={settings.zecToUsd} 
+                    disabled
+                    className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-emerald-400 font-bold" 
+                  />
+                  <button 
+                    onClick={refreshData}
+                    className="bg-slate-800 text-white px-3 py-2 rounded hover:bg-slate-700 border border-slate-700"
+                    title="Refresh Data"
+                  >
+                    <Activity size={18}/>
+                  </button>
+              </div>
+              <p className="text-xs text-emerald-500/70 mt-1">Automatically synced from CoinGecko API.</p>
             </div>
 
             <button onClick={saveAllSettings} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg flex items-center gap-2 disabled:opacity-50">

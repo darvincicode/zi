@@ -15,7 +15,8 @@ import {
   Copy,
   QrCode,
   Wallet,
-  Users
+  Users,
+  RefreshCw
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -32,6 +33,9 @@ const Dashboard: React.FC = () => {
   const [cryptoType, setCryptoType] = useState<'BTC' | 'LTC' | 'USDT_TRC20' | 'USDT_BEP20'>('LTC');
   const [txHash, setTxHash] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Exchange Rates
+  const [exchangeRates, setExchangeRates] = useState<{btc: number, ltc: number, usdt: number}>({ btc: 0, ltc: 0, usdt: 1 });
 
   // Initialization
   useEffect(() => {
@@ -43,6 +47,19 @@ const Dashboard: React.FC = () => {
         const latestPlans = await fetchPlans();
         
         setPlans(latestPlans);
+        
+        // Fetch Live Crypto Rates for Payment Calculation
+        try {
+           const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,litecoin&vs_currencies=usd');
+           const data = await res.json();
+           setExchangeRates({
+             btc: data.bitcoin.usd,
+             ltc: data.litecoin.usd,
+             usdt: 1 // Stable
+           });
+        } catch (e) {
+            console.error("Failed to fetch rates", e);
+        }
 
         if (currentUser) {
           setUser(currentUser);
@@ -194,14 +211,14 @@ const Dashboard: React.FC = () => {
 
   const renderPaymentAmount = () => {
     if (!selectedPlan) return null;
-    const usdPrice = (selectedPlan.priceZec * settings.zecToUsd).toFixed(2);
+    const usdPrice = (selectedPlan.priceZec * settings.zecToUsd);
     
     if (cryptoType.includes('USDT')) {
         return (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-4 text-center">
                 <p className="text-emerald-400 text-xs uppercase font-bold tracking-wider mb-1">Amount to Transfer</p>
                 <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-3xl font-mono font-bold text-white">{usdPrice}</span>
+                    <span className="text-3xl font-mono font-bold text-white">{usdPrice.toFixed(2)}</span>
                     <span className="text-lg font-bold text-emerald-500">USDT</span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">Equivalent to {selectedPlan.priceZec} ZEC</p>
@@ -209,14 +226,28 @@ const Dashboard: React.FC = () => {
         )
     }
 
+    let cryptoAmount = 0;
+    let symbol = cryptoType;
+    
+    if (cryptoType === 'BTC' && exchangeRates.btc > 0) {
+        cryptoAmount = usdPrice / exchangeRates.btc;
+    } else if (cryptoType === 'LTC' && exchangeRates.ltc > 0) {
+        cryptoAmount = usdPrice / exchangeRates.ltc;
+    }
+
     return (
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-4 text-center">
             <p className="text-emerald-400 text-xs uppercase font-bold tracking-wider mb-1">Amount to Transfer</p>
-            <div className="flex items-baseline justify-center gap-1">
-                <span className="text-3xl font-mono font-bold text-white">{selectedPlan.priceZec}</span>
-                <span className="text-lg font-bold text-emerald-500">ZEC</span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1">≈ ${usdPrice} USD (Send equivalent in {cryptoType})</p>
+            {cryptoAmount > 0 ? (
+                <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-3xl font-mono font-bold text-white">{cryptoAmount.toFixed(6)}</span>
+                    <span className="text-lg font-bold text-emerald-500">{symbol}</span>
+                </div>
+            ) : (
+                <div className="text-amber-400 text-sm">Fetching live {symbol} rates...</div>
+            )}
+            
+            <p className="text-[10px] text-slate-400 mt-1">≈ ${usdPrice.toFixed(2)} USD (Live Rate)</p>
         </div>
     )
   };

@@ -45,7 +45,7 @@ const DEFAULT_PLANS: MiningPlan[] = [
 ];
 
 const DEFAULT_SETTINGS: GlobalSettings = {
-  zecToUsd: 32.50, // Mock price
+  zecToUsd: 32.50, // Default fallback
   baseMiningRate: 0.0000000001, // ZEC per Hash per Second (Mock logic)
   minWithdrawalAmount: 0.05, // Default minimum withdrawal
   referralBonusHashRate: 5 * UnitMultiplier.KH, // Default 5 kH/s
@@ -71,6 +71,19 @@ const getFromLocal = <T>(key: string, defaultVal: T): T => {
 
 const saveToLocal = (key: string, data: any) => {
   localStorage.setItem(key, JSON.stringify(data));
+};
+
+// --- API PRICE FETCHING ---
+export const fetchLiveZecPrice = async (): Promise<number | null> => {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=zcash&vs_currencies=usd');
+    if (!res.ok) throw new Error('Price fetch failed');
+    const data = await res.json();
+    return data.zcash.usd;
+  } catch (e) {
+    console.warn("Could not fetch live ZEC price, using stored value.");
+    return null;
+  }
 };
 
 // --- ADMIN AUTH ---
@@ -126,10 +139,13 @@ export const saveSettings = async (settings: GlobalSettings) => {
 // Fetches from DB & Updates Local Cache
 // AUTO-SEEDS DB if empty
 export const fetchSettings = async (): Promise<GlobalSettings> => {
+  // 1. Fetch from DB
+  let currentSettings = DEFAULT_SETTINGS;
+  
   if (supabase) {
     const { data } = await supabase.from('global_settings').select('*').eq('id', 1).single();
     if (data) {
-      const s: GlobalSettings = {
+      currentSettings = {
         zecToUsd: data.zec_to_usd,
         baseMiningRate: data.base_mining_rate,
         minWithdrawalAmount: data.min_withdrawal_amount,
@@ -137,16 +153,26 @@ export const fetchSettings = async (): Promise<GlobalSettings> => {
         supportEmail: data.support_email,
         paymentConfig: data.payment_config
       };
-      saveToLocal(STORAGE_KEYS.SETTINGS, s);
-      return s;
     } else {
         // Table exists but is empty? Seed it.
         console.log("Seeding default settings to DB...");
         await saveSettings(DEFAULT_SETTINGS);
-        return DEFAULT_SETTINGS;
+        currentSettings = DEFAULT_SETTINGS;
     }
+  } else {
+    currentSettings = getSettings();
   }
-  return getSettings();
+
+  // 2. Attempt to update with LIVE Price
+  const livePrice = await fetchLiveZecPrice();
+  if (livePrice && livePrice !== currentSettings.zecToUsd) {
+      currentSettings.zecToUsd = livePrice;
+      // Save the updated live price back to storage/db silently
+      await saveSettings(currentSettings); 
+  }
+
+  saveToLocal(STORAGE_KEYS.SETTINGS, currentSettings);
+  return currentSettings;
 };
 
 // --- PLANS (Sync + Async) ---
@@ -177,8 +203,8 @@ export const fetchPlans = async (): Promise<MiningPlan[]> => {
         id: p.id,
         name: p.name,
         hashRate: p.hash_rate,
-        hashRateLabel: p.hash_rate_label, // Fixed mapping: snake_case from DB
-        priceZec: p.price_zec,            // Fixed mapping: snake_case from DB
+        hashRateLabel: p.hash_rate_label, 
+        priceZec: p.price_zec,            
         dailyProfit: p.daily_profit
       }));
       // Sort by price
