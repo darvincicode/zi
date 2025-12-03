@@ -190,9 +190,39 @@ const Dashboard: React.FC = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const settings = getSettings();
+
+  const renderPaymentAmount = () => {
+    if (!selectedPlan) return null;
+    const usdPrice = (selectedPlan.priceZec * settings.zecToUsd).toFixed(2);
+    
+    if (cryptoType.includes('USDT')) {
+        return (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-4 text-center">
+                <p className="text-emerald-400 text-xs uppercase font-bold tracking-wider mb-1">Amount to Transfer</p>
+                <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-3xl font-mono font-bold text-white">{usdPrice}</span>
+                    <span className="text-lg font-bold text-emerald-500">USDT</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Equivalent to {selectedPlan.priceZec} ZEC</p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 mb-4 text-center">
+            <p className="text-emerald-400 text-xs uppercase font-bold tracking-wider mb-1">Amount to Transfer</p>
+            <div className="flex items-baseline justify-center gap-1">
+                <span className="text-3xl font-mono font-bold text-white">{selectedPlan.priceZec}</span>
+                <span className="text-lg font-bold text-emerald-500">ZEC</span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">≈ ${usdPrice} USD (Send equivalent in {cryptoType})</p>
+        </div>
+    )
+  };
+
   if (!user) return <div>Loading dashboard...</div>;
 
-  const settings = getSettings();
   const estimatedDaily = (user.activeHashRate * settings.baseMiningRate * 86400).toFixed(6);
   const refBonusKHs = (settings.referralBonusHashRate / 1000).toFixed(1);
 
@@ -240,6 +270,8 @@ const Dashboard: React.FC = () => {
                        ))}
                     </div>
                   </div>
+
+                  {renderPaymentAmount()}
 
                   <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex flex-col items-center text-center">
                      {getAdminAddress(cryptoType) ? (
@@ -470,7 +502,10 @@ const Dashboard: React.FC = () => {
               </ul>
 
               <div className="mt-auto">
-                <p className="text-2xl font-bold text-white mb-3">{plan.priceZec} <span className="text-sm text-slate-500 font-normal">ZEC</span></p>
+                <div className="mb-3">
+                  <p className="text-2xl font-bold text-white leading-none">{plan.priceZec} <span className="text-sm text-slate-500 font-normal">ZEC</span></p>
+                  <p className="text-sm text-slate-500 mt-1">≈ ${(plan.priceZec * settings.zecToUsd).toFixed(2)} USD</p>
+                </div>
                 <button 
                   onClick={() => setSelectedPlan(plan)}
                   className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-emerald-900/20"
