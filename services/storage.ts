@@ -25,6 +25,7 @@ const DEFAULT_PLANS: MiningPlan[] = [
     hashRateLabel: '1 GH/s',
     priceZec: 0.5,
     dailyProfit: 0.015,
+    features: ["No Maintenance Fees", "Fast Activation", "Est. 0.015 ZEC / Day"]
   },
   {
     id: 'plan_advanced',
@@ -33,6 +34,7 @@ const DEFAULT_PLANS: MiningPlan[] = [
     hashRateLabel: '100 GH/s',
     priceZec: 45,
     dailyProfit: 1.6,
+    features: ["No Maintenance Fees", "Fast Activation", "Est. 1.6 ZEC / Day"]
   },
   {
     id: 'plan_enterprise',
@@ -41,6 +43,7 @@ const DEFAULT_PLANS: MiningPlan[] = [
     hashRateLabel: '1 TH/s',
     priceZec: 420,
     dailyProfit: 18.5,
+    features: ["No Maintenance Fees", "Fast Activation", "Est. 18.5 ZEC / Day"]
   },
 ];
 
@@ -177,7 +180,14 @@ export const fetchSettings = async (): Promise<GlobalSettings> => {
 
 // --- PLANS (Sync + Async) ---
 
-export const getPlans = (): MiningPlan[] => getFromLocal(STORAGE_KEYS.PLANS, DEFAULT_PLANS);
+export const getPlans = (): MiningPlan[] => {
+    const plans = getFromLocal(STORAGE_KEYS.PLANS, DEFAULT_PLANS);
+    // Ensure features exist (migration for old data)
+    return plans.map(p => ({
+        ...p,
+        features: p.features || ["No Maintenance Fees", "Fast Activation", `Est. ${p.dailyProfit} ZEC / Day`]
+    }));
+};
 
 export const savePlans = async (plans: MiningPlan[]) => {
   saveToLocal(STORAGE_KEYS.PLANS, plans);
@@ -188,7 +198,8 @@ export const savePlans = async (plans: MiningPlan[]) => {
       hash_rate: p.hashRate,
       hash_rate_label: p.hashRateLabel,
       price_zec: p.priceZec,
-      daily_profit: p.dailyProfit
+      daily_profit: p.dailyProfit,
+      features: p.features // Will be saved if column exists (JSONB or text[])
     }));
     await supabase.from('plans').upsert(dbPlans);
   }
@@ -205,7 +216,8 @@ export const fetchPlans = async (): Promise<MiningPlan[]> => {
         hashRate: p.hash_rate,
         hashRateLabel: p.hash_rate_label, 
         priceZec: p.price_zec,            
-        dailyProfit: p.daily_profit
+        dailyProfit: p.daily_profit,
+        features: p.features || ["No Maintenance Fees", "Fast Activation", `Est. ${p.daily_profit} ZEC / Day`]
       }));
       // Sort by price
       plans.sort((a, b) => a.priceZec - b.priceZec);

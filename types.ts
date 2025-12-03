@@ -5,6 +5,7 @@ export interface MiningPlan {
   hashRateLabel: string; // e.g., "1 GH/s"
   priceZec: number;
   dailyProfit: number;
+  features: string[]; // List of features/descriptions displayed on the card
 }
 
 export interface User {

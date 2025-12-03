@@ -138,6 +138,18 @@ const AdminPanel: React.FC = () => {
     setPlans(newPlans);
   };
 
+  const handleFeatureChange = (planIndex: number, featureIndex: number, value: string) => {
+      const newPlans = [...plans];
+      const newFeatures = [...(newPlans[planIndex].features || [])];
+      
+      // Ensure we have at least 3 items in the array to edit
+      while(newFeatures.length < 3) newFeatures.push("");
+      
+      newFeatures[featureIndex] = value;
+      newPlans[planIndex] = { ...newPlans[planIndex], features: newFeatures };
+      setPlans(newPlans);
+  };
+
   const saveAllPlans = async () => {
     setSaving(true);
     await savePlans(plans);
@@ -502,7 +514,7 @@ const AdminPanel: React.FC = () => {
           {plans.map((plan, idx) => (
             <div key={plan.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <h3 className="text-white font-bold mb-4 border-b border-slate-800 pb-2">Plan: {plan.name}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div>
                   <label className="block text-xs text-slate-500 mb-1">Display Name</label>
                   <input 
@@ -540,6 +552,26 @@ const AdminPanel: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Editable Features */}
+              <div className="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                  <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Plan Features (3 Lines)</label>
+                  <div className="space-y-2">
+                     {[0, 1, 2].map((featureIdx) => (
+                        <div key={featureIdx} className="flex items-center gap-2">
+                             <span className="text-xs text-slate-600 w-6">L{featureIdx + 1}</span>
+                             <input 
+                                type="text"
+                                value={plan.features?.[featureIdx] || ""}
+                                onChange={(e) => handleFeatureChange(idx, featureIdx, e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:text-white"
+                                placeholder={`Feature Line ${featureIdx + 1}`}
+                             />
+                        </div>
+                     ))}
+                  </div>
+              </div>
+
             </div>
           ))}
           <div className="flex justify-end">

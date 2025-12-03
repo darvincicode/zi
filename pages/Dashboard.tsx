@@ -518,18 +518,12 @@ const Dashboard: React.FC = () => {
               </div>
               
               <ul className="space-y-2 mb-6 flex-1">
-                <li className="flex items-center gap-2 text-slate-300 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  No Maintenance Fees
-                </li>
-                <li className="flex items-center gap-2 text-slate-300 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  Fast Activation
-                </li>
-                <li className="flex items-center gap-2 text-slate-300 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  Est. {plan.dailyProfit} ZEC / Day
-                </li>
+                {(plan.features || ["No Maintenance Fees", "Fast Activation", `Est. ${plan.dailyProfit} ZEC / Day`]).map((feature, i) => (
+                  <li key={i} className="flex items-center gap-2 text-slate-300 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    {feature}
+                  </li>
+                ))}
               </ul>
 
               <div className="mt-auto">
