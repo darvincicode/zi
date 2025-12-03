@@ -177,8 +177,8 @@ export const fetchPlans = async (): Promise<MiningPlan[]> => {
         id: p.id,
         name: p.name,
         hashRate: p.hash_rate,
-        hashRateLabel: p.hashRateLabel,
-        priceZec: p.priceZec,
+        hashRateLabel: p.hash_rate_label, // Fixed mapping: snake_case from DB
+        priceZec: p.price_zec,            // Fixed mapping: snake_case from DB
         dailyProfit: p.daily_profit
       }));
       // Sort by price
